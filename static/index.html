@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaSense — Precision Agriculture & Smart Irrigation Dashboard</title>
+  <meta name="description" content="AquaSense IoT smart agriculture and precision irrigation monitoring dashboard powered by ESP32.">
+  
+  <!-- CSS Design System with AeuxGlobal Theme -->
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <!-- MASTER BEZEL CONTAINER -->
+  <div id="app-frame">
+    
+    <!-- LEFT OBSIDIAN SIDEBAR -->
+    <aside id="app-sidebar" class="app-sidebar">
+      
+      <!-- Brand Logo Row -->
+      <div class="sidebar-brand-row">
+        <div class="brand-bars-icon">
+          <div class="brand-bar"></div>
+          <div class="brand-bar"></div>
+          <div class="brand-bar"></div>
+        </div>
+        <span class="brand-logo-text">AquaSense</span>
+      </div>
+
+      <!-- Workspace Selector Pill -->
+      <div class="workspace-pill" title="Active AgriTech Workspace">
+        <div class="workspace-left">
+          <div class="workspace-icon-box">
+            <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
+          </div>
+          <div class="workspace-details">
+            <span class="workspace-label">Farm Workspace</span>
+            <span class="workspace-name">EcoFarm-01</span>
+          </div>
+        </div>
+        <i data-lucide="chevron-down" style="width: 14px; height: 14px; color: var(--color-sidebar-text-muted);"></i>
+      </div>
+
+      <!-- Search Input Pill -->
+      <div class="sidebar-search">
+        <i data-lucide="search" style="width: 14px; height: 14px; color: var(--color-sidebar-text-muted);"></i>
+        <input type="text" class="search-input" placeholder="Search farm, sensor..." aria-label="Search">
+        <span class="keycap">⌘+F</span>
+      </div>
+
+      <!-- Navigation Menu -->
+      <div class="nav-section-title">Navigation</div>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="overview" id="nav-overview">
+          <i data-lucide="layout-grid" style="width: 16px; height: 16px;"></i>
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-item" data-view="monitoring" id="nav-monitoring">
+          <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
+          <span>Live Monitoring</span>
+        </button>
+
+        <button class="nav-item" data-view="control" id="nav-control">
+          <i data-lucide="toggle-right" style="width: 16px; height: 16px;"></i>
+          <span>Irrigation Control</span>
+        </button>
+
+        <button class="nav-item" data-view="analytics" id="nav-analytics">
+          <i data-lucide="bar-chart-2" style="width: 16px; height: 16px;"></i>
+          <span>Analytics</span>
+        </button>
+
+        <button class="nav-item" data-view="history" id="nav-history">
+          <i data-lucide="file-text" style="width: 16px; height: 16px;"></i>
+          <span>Reports & History</span>
+          <span class="nav-badge">1</span>
+        </button>
+
+        <button class="nav-item" data-view="alerts" id="nav-alerts">
+          <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
+          <span>Alerts & Safety</span>
+          <span class="nav-badge new" id="sidebar-alerts-badge">New</span>
+        </button>
+
+        <button class="nav-item" data-view="health" id="nav-health">
+          <i data-lucide="cpu" style="width: 16px; height: 16px;"></i>
+          <span>Device Health</span>
+        </button>
+
+        <button class="nav-item" data-view="settings" id="nav-settings">
+          <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+          <span>Settings</span>
+        </button>
+
+        <button class="nav-item" data-view="about" id="nav-about">
+          <i data-lucide="help-circle" style="width: 16px; height: 16px;"></i>
+          <span>About & QA</span>
+        </button>
+      </nav>
+
+      <!-- User Account Profile Card -->
+      <div class="sidebar-user-card">
+        <div class="user-avatar">
+          AW
+          <span class="user-status-dot"></span>
+        </div>
+        <div class="user-info">
+          <span class="user-name">Alex Williamson</span>
+          <span class="user-role">AgriTech Lead &bull; #node-1014</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN DASHBOARD CANVAS (Right Light Area) -->
+    <main class="app-canvas">
+      
+      <!-- Topbar Header -->
+      <header class="canvas-topbar">
+        <div class="canvas-topbar-left">
+          <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle Navigation Drawer">
+            <i data-lucide="menu"></i>
+          </button>
+          <h1 id="current-page-title" class="page-title">Dashboard</h1>
+        </div>
+
+        <div class="canvas-topbar-right">
+          <!-- ESP32 Status Pill -->
+          <div id="device-status-pill" class="device-status-pill offline" title="ESP32 Telemetry Status">
+            <div class="status-dot"></div>
+            <span id="device-status-text">ESP32 Offline</span>
+          </div>
+
+          <!-- Firebase RTDB Cloud Pill -->
+          <div id="firebase-status-pill" class="firebase-status-pill connecting" title="Firebase Realtime Database (asia-southeast1)">
+            <span class="firebase-dot"></span>
+            <span id="firebase-status-text">Firebase Cloud</span>
+          </div>
+
+          <!-- Notification Bell -->
+          <button id="topbar-alerts-btn" class="action-icon-circle" title="View Alerts" aria-label="Alerts">
+            <i data-lucide="bell" style="width: 16px; height: 16px;"></i>
+            <span id="alerts-badge-dot" class="badge-dot" style="display: none;"></span>
+          </button>
+
+          <!-- Theme Toggle (Light / Dark) -->
+          <button id="theme-toggle-btn" class="action-icon-circle" title="Toggle Dark/Light Mode" aria-label="Toggle Theme">
+            <i data-lucide="moon" style="width: 16px; height: 16px;"></i>
+          </button>
+
+          <!-- Action Button ("Add Custom Widget" style) -->
+          <button class="btn-dark-pill" onclick="App.navigateTo('control')">
+            <i data-lucide="droplet" style="width: 14px; height: 14px; color: var(--color-accent-green);"></i>
+            <span>Quick Control</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Canvas Content Wrapper -->
+      <div class="content-wrapper">
+
+        <!-- SIMULATION ACTIVE BANNER -->
+        <div id="sim-banner" class="sim-banner" style="display: none;">
+          <div>
+            <strong>SIMULATION ACTIVE:</strong> Telemetry is generated by software test simulator for demonstration.
+          </div>
+          <button id="btn-toggle-simulator" class="btn-dark-pill" style="padding: 0.25rem 0.625rem; font-size: 0.75rem;">
+            Stop Simulator
+          </button>
+        </div>
+
+        <!-- ESP OFFLINE NOTICE BANNER -->
+        <div id="esp-offline-banner" class="esp-offline-banner" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 0.625rem;">
+            <div class="offline-pulse-dot"></div>
+            <div>
+              <strong>ESP Offline:</strong> <span id="esp-offline-msg">Hardware disconnected. Live telemetry paused.</span>
+            </div>
+          </div>
+          <span id="esp-last-seen-badge" class="badge-status-pill offline">Waiting for ESP</span>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 1: OVERVIEW (EXACT AEUXGLOBAL LAYOUT) -->
+        <!-- ============================================================== -->
+        <section id="view-overview" class="view-section active">
+          
+          <!-- TOP 3 KPI CARDS ROW -->
+          <div class="kpi-row-exact">
+            
+            <!-- Card 1: Featured Inverted Dark Card (like "Air Pollution Level" in screenshot) -->
+            <div class="kpi-card-dark">
+              <div>
+                <div class="kpi-label">Soil Moisture Level</div>
+                <div class="kpi-display-num">
+                  <span id="kpi-soil-value">--</span>
+                  <span class="kpi-unit-sub">%</span>
+                </div>
+                <div class="kpi-delta-green">
+                  <i data-lucide="trending-up" style="width: 12px; height: 12px;"></i>
+                  <span id="kpi-soil-badge">Waiting for device</span>
+                </div>
+              </div>
+              <div class="mini-bars-wrap">
+                <div class="mini-bar green-dim" style="height: 14px;"></div>
+                <div class="mini-bar green" style="height: 28px;"></div>
+                <div class="mini-bar green" style="height: 20px;"></div>
+                <div class="mini-bar green-dim" style="height: 10px;"></div>
+              </div>
+            </div>
+
+            <!-- Card 2: White Card (like "Environmental Quality Index" in screenshot) -->
+            <div class="kpi-card-white">
+              <div>
+                <div class="kpi-label">Environmental Quality Index</div>
+                <div class="kpi-display-num">
+                  <span id="kpi-temp-value">--</span><span style="font-size: 1rem; color: var(--color-text-secondary);">°C</span>
+                  <span style="font-size: 1.125rem; font-weight: 600; color: var(--color-text-muted); margin-left: 0.25rem;">/ <span id="kpi-humidity-value">--</span>%</span>
+                </div>
+                <div class="kpi-delta-red">
+                  <i data-lucide="trending-down" style="width: 12px; height: 12px;"></i>
+                  <span>DHT11 Ambient &bull; Optimal</span>
+                </div>
+              </div>
+              <div class="mini-bars-wrap">
+                <div class="mini-bar red" style="height: 12px;"></div>
+                <div class="mini-bar red-dim" style="height: 20px;"></div>
+                <div class="mini-bar red" style="height: 16px;"></div>
+              </div>
+            </div>
+
+            <!-- Card 3: White Card (like "Investments in Clean Technologies" in screenshot) -->
+            <div class="kpi-card-white">
+              <div>
+                <div class="kpi-label">Water Efficiency & Pump Telemetry</div>
+                <div class="kpi-display-num">
+                  <span id="kpi-pump-value">--</span>
+                  <span style="font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-left: 0.375rem;">(Relay)</span>
+                </div>
+                <div class="kpi-delta-green">
+                  <i data-lucide="trending-up" style="width: 12px; height: 12px;"></i>
+                  <span id="kpi-rain-badge">No Rain Lockout</span>
+                </div>
+              </div>
+              <div class="mini-bars-wrap">
+                <div class="mini-bar green-dim" style="height: 10px;"></div>
+                <div class="mini-bar green" style="height: 22px;"></div>
+                <div class="mini-bar green" style="height: 16px;"></div>
+                <div class="mini-bar green-dim" style="height: 26px;"></div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- MAIN 2-COLUMN DASHBOARD GRID -->
+          <div class="dashboard-main-grid">
+            
+            <!-- LEFT 2/3 COLUMN: Main Chart & Regional Table -->
+            <div class="grid-col-left">
+              
+              <!-- Climate / Soil Moisture Bar Chart Card -->
+              <div class="card-panel">
+                <div class="card-panel-header">
+                  <span class="card-panel-title">Climate & Moisture Index</span>
+                  <div class="filter-pill-dark" onclick="App.navigateTo('analytics')">
+                    <span>24 Hours</span>
+                    <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>
+                  </div>
+                </div>
+                <div style="height: 230px; position: relative;">
+                  <canvas id="overview-trend-canvas"></canvas>
+                </div>
+              </div>
+
+              <!-- Irrigation Zones & Telemetry Table Card -->
+              <div class="card-panel">
+                <div class="card-panel-header">
+                  <span class="card-panel-title">Irrigation Telemetry by Zone</span>
+                  <div class="filter-pill-dark">
+                    <span>All Zones</span>
+                    <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>
+                  </div>
+                </div>
+                <div class="table-wrap-exact">
+                  <table class="table-exact">
+                    <thead>
+                      <tr>
+                        <th>Region / Zone</th>
+                        <th>Target</th>
+                        <th>Moisture</th>
+                        <th>Dynamic</th>
+                        <th>Irrigation Mode</th>
+                        <th>Water Volume</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>
+                          <div class="zone-cell">
+                            <span class="zone-flag" style="background: linear-gradient(135deg, #165636, #22C55E);"></span>
+                            <div>
+                              <div>USA Nursery</div>
+                              <div style="font-size: 0.6875rem; color: var(--color-text-muted);">Root Zone A</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><strong>25%</strong></td>
+                        <td>35%</td>
+                        <td>
+                          <svg class="sparkline-svg" viewBox="0 0 60 20">
+                            <path d="M0,15 Q15,5 30,12 T60,6" fill="none" stroke="#22C55E" stroke-width="2"/>
+                          </svg>
+                        </td>
+                        <td><span style="background: var(--color-bg-canvas); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6875rem;">Autonomous</span></td>
+                        <td>4,167.98 L</td>
+                        <td style="color: var(--color-text-muted); cursor: pointer;">&vellip;</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="zone-cell">
+                            <span class="zone-flag" style="background: linear-gradient(135deg, #E79B35, #22C55E);"></span>
+                            <div>
+                              <div>German Orchard</div>
+                              <div style="font-size: 0.6875rem; color: var(--color-text-muted);">Drip Zone B</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><strong>21%</strong></td>
+                        <td>60%</td>
+                        <td>
+                          <svg class="sparkline-svg" viewBox="0 0 60 20">
+                            <path d="M0,8 Q20,18 40,8 T60,12" fill="none" stroke="#E79B35" stroke-width="2"/>
+                          </svg>
+                        </td>
+                        <td><span style="background: var(--color-bg-canvas); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6875rem;">Autonomous</span></td>
+                        <td>2,571.19 L</td>
+                        <td style="color: var(--color-text-muted); cursor: pointer;">&vellip;</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="zone-cell">
+                            <span class="zone-flag" style="background: linear-gradient(135deg, #258BD4, #2EE59D);"></span>
+                            <div>
+                              <div>Japan Hydro</div>
+                              <div style="font-size: 0.6875rem; color: var(--color-text-muted);">Subsurface C</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><strong>36%</strong></td>
+                        <td>85%</td>
+                        <td>
+                          <svg class="sparkline-svg" viewBox="0 0 60 20">
+                            <path d="M0,18 Q15,6 30,10 T60,4" fill="none" stroke="#22C55E" stroke-width="2"/>
+                          </svg>
+                        </td>
+                        <td><span style="background: var(--color-bg-canvas); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6875rem;">Energy Recovery</span></td>
+                        <td>1,864.27 L</td>
+                        <td style="color: var(--color-text-muted); cursor: pointer;">&vellip;</td>
+                      </tr>
+                      <tr>
+                        <td>
+                          <div class="zone-cell">
+                            <span class="zone-flag" style="background: linear-gradient(135deg, #E54848, #E79B35);"></span>
+                            <div>
+                              <div>China Canopy</div>
+                              <div style="font-size: 0.6875rem; color: var(--color-text-muted);">Open Bed D</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><strong>85%</strong></td>
+                        <td>25%</td>
+                        <td>
+                          <svg class="sparkline-svg" viewBox="0 0 60 20">
+                            <path d="M0,4 Q20,14 40,6 T60,16" fill="none" stroke="#E54848" stroke-width="2"/>
+                          </svg>
+                        </td>
+                        <td><span style="background: var(--color-bg-canvas); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.6875rem;">Chemical Cycle</span></td>
+                        <td>8,643.74 L</td>
+                        <td style="color: var(--color-text-muted); cursor: pointer;">&vellip;</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- RIGHT 1/3 COLUMN: Large Mint Card & Dark Sensor Map Card -->
+            <div class="grid-col-right">
+              
+              <!-- Featured Mint Card (like "99,681m TONS" in screenshot) -->
+              <div class="card-featured-mint">
+                <div class="mint-top-metric">
+                  <span class="huge-display-num">99,681</span>
+                  <span class="huge-unit">LITERS</span>
+                </div>
+                <div class="mint-badge-green">
+                  <i data-lucide="sparkle" style="width: 14px; height: 14px;"></i>
+                  <span>20% water conserved vs baseline</span>
+                </div>
+
+                <div class="mint-sub-items">
+                  <div class="mint-sub-item">
+                    <div class="mint-icon-circle">
+                      <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    <div>
+                      <div class="mint-item-title">Mechanical Drip Control</div>
+                      <div class="mint-item-desc">1,697 L automated delivery</div>
+                    </div>
+                  </div>
+
+                  <div class="mint-sub-item">
+                    <div class="mint-icon-circle">
+                      <i data-lucide="sliders" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    <div>
+                      <div class="mint-item-title">Autonomous Hysteresis</div>
+                      <div class="mint-item-desc">15% Start &bull; 25% Stop Active</div>
+                    </div>
+                  </div>
+
+                  <div class="mint-sub-item">
+                    <div class="mint-icon-circle">
+                      <i data-lucide="cloud-rain" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    <div>
+                      <div class="mint-item-title">Rain Lockout Watchdog</div>
+                      <div class="mint-item-desc">Instant precipitation override</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Deep Dark Field Map Card (like "Global pollution" map in screenshot) -->
+              <div class="card-deep-dark">
+                <div class="card-panel-header">
+                  <span class="card-panel-title">Field Sensor Map</span>
+                  <div class="filter-pill-dark" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15);">
+                    <span>Farm Zone 1</span>
+                    <i data-lucide="chevron-down" style="width: 12px; height: 12px;"></i>
+                  </div>
+                </div>
+                
+                <div class="map-visual-wrap">
+                  <!-- Stylized Farm Field Vector SVG -->
+                  <svg width="240" height="150" viewBox="0 0 240 150" fill="none">
+                    <path d="M20,60 Q50,40 90,50 T160,40 T220,60 L230,120 Q180,140 120,130 T20,120 Z" fill="#0E2419" stroke="#164D31" stroke-width="1.5"/>
+                    <path d="M50,70 Q90,55 130,65 T200,60 L190,110 Q140,120 80,115 Z" fill="#143D27" stroke="#22C55E" stroke-width="1.5" stroke-dasharray="3 3"/>
+                    <circle cx="85" cy="80" r="5" fill="#22C55E"/>
+                    <circle cx="85" cy="80" r="10" stroke="#22C55E" stroke-opacity="0.4" fill="none"/>
+                    <circle cx="140" cy="75" r="4" fill="#2EE59D"/>
+                    <circle cx="170" cy="95" r="4" fill="#22C55E"/>
+                  </svg>
+
+                  <!-- Floating Glassmorphic Tooltip Pill (like "Ukraine High Level 89%" in screenshot) -->
+                  <div class="floating-map-badge">
+                    <div>
+                      <div>Zone 1 Orchard</div>
+                      <div style="font-size: 0.5625rem; color: #8E9F96;">Optimal Moisture</div>
+                    </div>
+                    <span class="badge-pct">89% ↗</span>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; font-size: 0.75rem; color: #6A8275;">
+                  <span>GPS: 48.3794° N, 31.1656° E</span>
+                  <div style="width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; cursor: pointer;">?</div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 2: LIVE MONITORING -->
+        <!-- ============================================================== -->
+        <section id="view-monitoring" class="view-section">
+          <div class="card-panel" style="margin-bottom: 1.5rem;">
+            <div class="card-panel-header">
+              <span class="card-panel-title">Sensor Telemetry Freshness & Bus Diagnostics</span>
+              <span id="mon-freshness-badge" class="device-status-pill online">Fresh (2s ago)</span>
+            </div>
+            <div class="kpi-row-exact">
+              <div class="card-panel" style="padding: 1.25rem; background: var(--color-bg-canvas);">
+                <div class="form-label">FC-28 Soil Moisture (GPIO 34)</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary);">Raw: <span id="mon-raw-soil">--</span></div>
+                <div class="form-hint">12-bit ADC (Air ~3500 | Water ~1400)</div>
+              </div>
+
+              <div class="card-panel" style="padding: 1.25rem; background: var(--color-bg-canvas);">
+                <div class="form-label">Rain Detection Plate (GPIO 32)</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary);">Raw: <span id="mon-raw-rain">--</span></div>
+                <div class="form-hint">Analog resistance drop &lt; 2500 indicates rain</div>
+              </div>
+
+              <div class="card-panel" style="padding: 1.25rem; background: var(--color-bg-canvas);">
+                <div class="form-label">LDR Photoresistor (GPIO 35)</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: var(--color-text-primary);">Raw: <span id="mon-raw-light">--</span></div>
+                <div class="form-hint">Lower value = Higher light intensity</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 3: IRRIGATION CONTROL -->
+        <!-- ============================================================== -->
+        <section id="view-control" class="view-section">
+          <div class="control-mode-bar">
+            <button class="mode-tab-btn active" data-mode="AUTO" id="mode-tab-auto">
+              Automatic Mode (Local ESP32 Logic)
+            </button>
+            <button class="mode-tab-btn" data-mode="MANUAL" id="mode-tab-manual">
+              Manual Mode (User Override)
+            </button>
+          </div>
+
+          <div class="pump-hero-card">
+            <div id="pump-status-indicator" class="pump-status-indicator off">
+              <i data-lucide="power" style="width: 44px; height: 44px;"></i>
+            </div>
+            <h2 id="pump-state-headline" style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.25rem;">PUMP IS OFF</h2>
+            <p id="pump-state-description" style="font-size: 0.875rem; color: var(--color-text-secondary); max-width: 480px; margin-bottom: 1.5rem;">
+              Relay contact is open. Physical pump is safely idle.
+            </p>
+
+            <div class="form-group" style="width: 100%; max-width: 340px; margin-bottom: 1.5rem;">
+              <label class="form-label" for="manual-duration-select">Manual Run-Time Duration Cutoff</label>
+              <select id="manual-duration-select" class="form-select">
+                <option value="5">5 Seconds (Short Flush)</option>
+                <option value="10">10 Seconds</option>
+                <option value="15" selected>15 Seconds (Recommended)</option>
+                <option value="20">20 Seconds (Max Watchdog Limit)</option>
+              </select>
+            </div>
+
+            <div class="pump-actions-row">
+              <button id="btn-start-pump" class="btn btn-primary btn-lg" disabled>
+                <i data-lucide="play" style="width: 18px; height: 18px;"></i> Start Pump
+              </button>
+              <button id="btn-stop-pump" class="btn btn-danger btn-lg" disabled>
+                <i data-lucide="square" style="width: 18px; height: 18px;"></i> Emergency Stop
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 4: SENSOR ANALYTICS -->
+        <!-- ============================================================== -->
+        <section id="view-analytics" class="view-section">
+          <div class="card-panel-header">
+            <span class="card-panel-title">Sensor Analytics & Multi-Axis Telemetry</span>
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="filter-pill-dark" onclick="App.loadAnalyticsCharts('1h')">1 Hour</button>
+              <button class="filter-pill-dark" onclick="App.loadAnalyticsCharts('24h')">24 Hours</button>
+              <button class="filter-pill-dark" onclick="App.loadAnalyticsCharts('7d')">7 Days</button>
+            </div>
+          </div>
+
+          <div class="card-panel" style="margin-bottom: 1.5rem;">
+            <div class="card-panel-title" style="margin-bottom: 1rem;">Soil Moisture with 15% & 25% Hysteresis Cutoffs</div>
+            <div style="height: 280px; position: relative;">
+              <canvas id="analytics-soil-canvas"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="card-panel-title" style="margin-bottom: 1rem;">Ambient Temp & Humidity</div>
+            <div style="height: 220px; position: relative;">
+              <canvas id="analytics-env-canvas"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 5: IRRIGATION HISTORY -->
+        <!-- ============================================================== -->
+        <section id="view-history" class="view-section">
+          <div class="card-panel-header">
+            <span class="card-panel-title">Irrigation Audit History</span>
+            <a href="/api/export/csv?data_type=events" class="btn-dark-pill">
+              <i data-lucide="download" style="width: 14px; height: 14px;"></i> Export Events CSV
+            </a>
+          </div>
+
+          <div class="card-panel table-wrap-exact">
+            <table class="table-exact">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event Type</th>
+                  <th>Soil Moisture</th>
+                  <th>Pump State</th>
+                  <th>Mode</th>
+                  <th>Reason</th>
+                  <th>Duration</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading history...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 6: ALERTS & SAFETY -->
+        <!-- ============================================================== -->
+        <section id="view-alerts" class="view-section">
+          <div class="card-panel-title" style="margin-bottom: 1.25rem;">Safety Alerts & Hardware Fault Warnings</div>
+          <div id="alerts-list-container">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 7: DEVICE HEALTH -->
+        <!-- ============================================================== -->
+        <section id="view-health" class="view-section">
+          <div class="card-panel" style="margin-bottom: 1.5rem;">
+            <div class="card-panel-title" style="margin-bottom: 1rem;">ESP32 Node & Battery Architecture</div>
+            <table class="table-exact">
+              <tbody>
+                <tr><td><strong>ESP Connection Status</strong></td><td id="health-online-status"><span class="badge-status-pill offline"><span class="dot offline"></span> ESP Offline</span></td></tr>
+                <tr><td><strong>Microcontroller</strong></td><td>ESP32 WROOM-32 (Dual Core 240MHz)</td></tr>
+                <tr><td><strong>Firmware Build</strong></td><td id="health-firmware">v1.0.0-esp32</td></tr>
+                <tr><td><strong>Last Heartbeat</strong></td><td id="health-last-heartbeat">--</td></tr>
+                <tr><td><strong>Wi-Fi Signal (RSSI)</strong></td><td id="health-rssi">--</td></tr>
+                <tr><td><strong>18650 Battery Voltage</strong></td><td id="health-battery">Not Measured (Direct Power)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 8: SETTINGS & CALIBRATION -->
+        <!-- ============================================================== -->
+        <section id="view-settings" class="view-section">
+          <div class="card-panel">
+            <div class="card-panel-title" style="margin-bottom: 1.25rem;">Irrigation Thresholds & Calibration</div>
+            <form id="settings-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="setting-dry">Dry Soil Threshold (%)</label>
+                  <input type="number" step="0.5" id="setting-dry" class="form-input" required min="5" max="45" value="15.0">
+                  <div class="form-hint">Moisture percentage below which automatic watering starts.</div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-wet">Wet / Stop Threshold (%)</label>
+                  <input type="number" step="0.5" id="setting-wet" class="form-input" required min="15" max="80" value="25.0">
+                  <div class="form-hint">Hysteresis cutoff: watering halts at this percentage.</div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="setting-max-runtime">Max Pump Run-Time (Seconds)</label>
+                  <input type="number" id="setting-max-runtime" class="form-input" required min="5" max="120" value="20">
+                  <div class="form-hint">Enforced locally on-chip by ESP32 watchdog.</div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-cooldown">Cooldown Duration (Seconds)</label>
+                  <input type="number" id="setting-cooldown" class="form-input" required min="10" max="1800" value="60">
+                  <div class="form-hint">Rest period between watering cycles.</div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="setting-soil-dry-raw">FC-28 Soil Dry Air Raw ADC</label>
+                  <input type="number" id="setting-soil-dry-raw" class="form-input" required min="1500" max="4095" value="3500">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-soil-wet-raw">FC-28 Soil Water Immersion Raw ADC</label>
+                  <input type="number" id="setting-soil-wet-raw" class="form-input" required min="500" max="3000" value="1400">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label" for="setting-default-mode">Default Boot Mode</label>
+                  <select id="setting-default-mode" class="form-select">
+                    <option value="AUTO" selected>AUTO (Local ESP32 Logic)</option>
+                    <option value="MANUAL">MANUAL (User Initiated Commands)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="setting-timeout">Device Timeout (Seconds)</label>
+                  <input type="number" id="setting-timeout" class="form-input" required min="10" max="300" value="45">
+                </div>
+              </div>
+
+              <div class="toggle-row">
+                <div>
+                  <div class="form-label" style="margin-bottom: 0;">Rain Detection Lockout</div>
+                  <div class="form-hint">Inhibit watering and stop pump when rain is sensed.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="setting-rain-lockout" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary">
+                  <i data-lucide="save"></i> Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Firebase Realtime Database Integration Card -->
+          <div class="card-panel" style="margin-top: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.625rem;">
+                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+                  <i data-lucide="cloud-lightning" style="width: 18px; height: 18px;"></i>
+                </div>
+                <div>
+                  <div class="card-panel-title" style="margin-bottom: 0;">Firebase Cloud Integration</div>
+                  <div class="form-hint" style="margin-top: 2px;">Realtime Database &amp; Analytics live synchronization</div>
+                </div>
+              </div>
+              <span class="badge-status-pill online">
+                <span class="dot online"></span>
+                <span>asia-southeast1 Live</span>
+              </span>
+            </div>
+
+            <div class="firebase-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+              <div class="kpi-mini-card">
+                <span class="kpi-sublabel">Firebase Project</span>
+                <span class="kpi-bold-val" style="font-size: 1rem;">aquasense-62dda</span>
+              </div>
+              <div class="kpi-mini-card">
+                <span class="kpi-sublabel">Realtime Database Host</span>
+                <span class="kpi-bold-val" style="font-size: 0.8125rem; word-break: break-all;">aquasense-62dda-default-rtdb</span>
+              </div>
+              <div class="kpi-mini-card">
+                <span class="kpi-sublabel">Sync Mode</span>
+                <span class="kpi-bold-val" style="font-size: 1rem; color: var(--color-accent-teal);">WebSocket + REST</span>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn-outline" onclick="FirebaseService.forceSync()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Force Cloud Sync Now
+              </button>
+              <a href="https://console.firebase.google.com/u/0/project/aquasense-62dda/database/aquasense-62dda-default-rtdb/data/~2F" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="text-decoration: none;">
+                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i> Open Firebase Console
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- VIEW 9: ABOUT & QA SIMULATOR -->
+        <!-- ============================================================== -->
+        <section id="view-about" class="view-section">
+          <div class="card-panel" style="margin-bottom: 1.5rem;">
+            <div class="card-panel-title">AquaSense Precision Agriculture Platform</div>
+            <p style="font-size: 0.875rem; color: var(--color-text-secondary); line-height: 1.6; margin-top: 0.5rem;">
+              AquaSense pairs continuous root-zone and environmental sensing with autonomous local hysteresis control (<15% start, &ge;25% stop).
+            </p>
+          </div>
+
+          <div class="card-panel">
+            <div class="card-panel-title" style="margin-bottom: 0.75rem;">Software Testing Telemetry Simulator</div>
+            <p style="font-size: 0.8125rem; color: var(--color-text-secondary); margin-bottom: 1rem;">
+              Step the software simulator to test automated pump triggering, rain lockout, and live charts without physical ESP32 hardware.
+            </p>
+            <div style="display: flex; gap: 0.75rem;">
+              <button id="btn-sim-dry" class="btn btn-outline">
+                <i data-lucide="droplet-off" style="width: 14px; height: 14px; color: var(--color-warning);"></i> Simulate Drought (&lt;15%)
+              </button>
+              <button id="btn-sim-rain" class="btn btn-outline">
+                <i data-lucide="cloud-rain" style="width: 14px; height: 14px; color: var(--color-accent-green);"></i> Simulate Rain Event
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- CONFIRMATION MODAL -->
+  <div id="pump-confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-icon-alert">
+          <i data-lucide="alert-triangle"></i>
+        </div>
+        <h3 id="modal-title" class="modal-title">Confirm Pump Activation</h3>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to activate the irrigation pump manually?
+        <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--color-bg-canvas); border-radius: var(--radius-md); font-size: 0.8125rem;">
+          <div>&bull; Relay: <strong>Switched via GPIO 26</strong></div>
+          <div>&bull; Maximum duration: <strong>Configured limit</strong></div>
+          <div>&bull; Watchdog: <strong>Enforced locally on-chip</strong></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="modal-btn-cancel" class="btn btn-outline">Cancel</button>
+        <button id="modal-btn-confirm" class="btn btn-primary">Confirm & Start Pump</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Firebase SDKs (v10 compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-service.js"></script>
+
+  <!-- Application Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+  
+  <script>
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>
